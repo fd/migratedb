@@ -2,45 +2,44 @@ package main
 
 import (
 	"fmt"
-	"github.com/codegangsta/cli"
 	"log"
 	"os"
+
+	"github.com/docopt/docopt-go"
 )
 
+const usage = `migratedb - migrate database schemas
+
+Usage:
+  migratedb [--path=<dir>] <database_url>
+  migratedb -h | --help
+  migratedb --version
+
+Options:
+  -h --help     Show this screen.
+  --version     Show version.
+  --path=<dir>  Path to migrations directory [default: migrations].
+`
+
 func main() {
-	app := cli.NewApp()
-	app.Name = "migratedb"
-	app.Usage = "migrate database schemas"
-	app.Flags = []cli.Flag{
-		cli.StringFlag{"path", "migrations", "path of the migrations directory"},
-	}
-	app.Action = func(c *cli.Context) {
-		var (
-			dburl string
-		)
+	var (
+		args, _ = docopt.Parse(usage, nil, true, "1.0", false)
+		dburl   = args["<database_url>"].(string)
+		path    = args["--path"].(string)
+	)
 
-		if len(c.Args()) != 1 {
-			fmt.Printf("error: %s\n", "no database url was provided")
-			os.Exit(1)
-		} else {
-			dburl = c.Args()[0]
-		}
-
-		migrations, err := LoadMigrations(c.String("path"))
-		if err != nil {
-			fmt.Printf("error: %s\n", err)
-			os.Exit(1)
-		}
-
-		adapter, err := Open(dburl)
-		if err != nil {
-			fmt.Printf("error: %s\n", err)
-			os.Exit(1)
-		}
-
-		migrator := &Migrator{migrations, adapter, log.New(os.Stdout, "", 0)}
-		migrator.Run()
+	migrations, err := LoadMigrations(path)
+	if err != nil {
+		fmt.Printf("error: %s\n", err)
+		os.Exit(1)
 	}
 
-	app.Run(os.Args)
+	adapter, err := Open(dburl)
+	if err != nil {
+		fmt.Printf("error: %s\n", err)
+		os.Exit(1)
+	}
+
+	migrator := &Migrator{migrations, adapter, log.New(os.Stdout, "", 0)}
+	migrator.Run()
 }
